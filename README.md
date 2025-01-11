@@ -206,6 +206,7 @@ with torch.no_grad(): # Disables gradient computation, as we don't need to compu
     val_loss = criterion(val_output.contiguous().view(-1, 1000), targetTensor_test[:, 1:].contiguous().view(-1)) # Computes the loss between the model's predictions and the validation target data
     print(f"Validation Loss: {val_loss.item()}") # Prints the validation loss value
    ```
+![screenshot](https://github.com/user-attachments/assets/19a242c4-5677-4db0-9342-19ebf84ae3f4)
 
 Lastly, the outputs of the model with the original data and future prediction are processed on our trained transformer model and plotted, seperatively.
 
