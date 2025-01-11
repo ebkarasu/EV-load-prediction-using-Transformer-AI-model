@@ -1,4 +1,4 @@
-This script is written in order to implement transformer deep learning model and test it by generating predictions of Electric Vehicle charging demands each hour.
+This script is written in order to implement LSTM deep learning model and test it by generating predictions of Electric Vehicle charging demands each hour.
 
 Importing required libraries
 
