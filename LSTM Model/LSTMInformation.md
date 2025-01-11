@@ -12,141 +12,99 @@ import torch.utils.data as data
 import math
 import copy
 import json
-import timedelta
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
 from sympy.stats.sampling.sample_numpy import numpy
+from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 ```
 
-# Implementing Transformer
-
-**1. Multi-head Attention**
+# Implementing LSTM Model
    
-   Multi-Head Attention mechanism computes the attention between each pair of positions in a sequence. It consists of multiple “attention heads” that capture different aspects of the input sequence.
+   The LSTM class takes input size which is the number of the features, hidden dimension which is what dimension we want to be in middle there, and number of stacked layers is how many layers we want the LSTM model be. Then the nn.LSTM function is called to operation be done. It simply maintains a "memory" over long sequences, enabling them to learn patterns from time series data to give an estimation.
    
    ```
-   class MultiHeadAttention(nn.Module):
-    def __init__(self, d_model, num_heads):
+   class LSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_stacked_layers):
         super().__init__()
-        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+        self.hidden_size = hidden_size
+        self.num_stacked_layers = num_stacked_layers
 
-        # Initialize dimensions
-        self.d_model = d_model  # Model's dimension
-        self.num_heads = num_heads  # Number of attention heads
-        self.d_k = d_model // num_heads  # Dimension of each head's key, query, and value
+        self.lstm = nn.LSTM(input_size, hidden_size, num_stacked_layers,
+                            batch_first=True)
 
-        # Linear layers for transforming inputs
-        self.W_q = nn.Linear(d_model, d_model)  # Query transformation
-        self.W_k = nn.Linear(d_model, d_model)  # Key transformation
-        self.W_v = nn.Linear(d_model, d_model)  # Value transformation
-        self.W_o = nn.Linear(d_model, d_model)  # Output transformation
-   ```
-
-**2. Feed forward Network**
-
-   FeedForward class defines a position-wise feed-forward neural network that consists of two linear layers with a ReLU activation function in between. This feed-forward network is applied to each position separately and identically.
-
-   ```
-   class PositionWiseFeedForward(nn.Module):
-    def __init__(self, d_model, d_ff):
-        super().__init__()
-        self.fc1 = nn.Linear(d_model, d_ff)
-        self.fc2 = nn.Linear(d_ff, d_model)
-        self.relu = nn.ReLU()
+        self.fc = nn.Linear(hidden_size, 1)
 
     def forward(self, x):
-        return self.fc2(self.relu(self.fc1(x)))
-   ```
-   
-**3. Encoder Block**
+        batch_size = x.size(0)
+        h0 = torch.zeros(self.num_stacked_layers, batch_size, self.hidden_size).to(device)
+        c0 = torch.zeros(self.num_stacked_layers, batch_size, self.hidden_size).to(device)
 
-   Encoder defines a single layer of the transformer's encoder. It encapsulates a multi-head self-attention mechanism followed by position-wise feed-forward neural network. Typically, multiple such encoder layers are stacked to form the complete encoder part of a          transformer model. 
-    
-   ```
-    class EncoderLayer(nn.Module):
-        def __init__(self, d_model, num_heads, d_ff, dropout):
-            super(EncoderLayer, self).__init__()
-            self.self_attn = MultiHeadAttention(d_model, num_heads)
-            self.feed_forward = PositionWiseFeedForward(d_model, d_ff)
-            self.norm1 = nn.LayerNorm(d_model)
-            self.norm2 = nn.LayerNorm(d_model)
-            self.dropout = nn.Dropout(dropout)
-    
-        def forward(self, x, mask):
-            attn_output = self.self_attn(x, x, x, mask)
-            x = self.norm1(x + self.dropout(attn_output))
-            ff_output = self.feed_forward(x)
-            x = self.norm2(x + self.dropout(ff_output))
-            return x
+        out, _ = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])
+        return out
    ```
 
-**4. Decoder Block**
 
-   Decoder class defines a single layer of the transformer's decoder. It consists of a multi-head self-attention mechanism, a multi-head cross-attention mechanism, a position-wise feed-forward neural network and the corresponding residual connections, layer                normalization, and dropout layers. As with the encoder, multiple decoder layers are typically stacked to form the complete decoder part of a transformer model.
+   Training the model, the model is trained with approximately ∼ 85% with our data with whatever epoch number is specified. It calculates and prints loss during each step.
 
    ```
-    class DecoderLayer(nn.Module):
-    def __init__(self, d_model, num_heads, d_ff, dropout):
-        super(DecoderLayer, self).__init__()
-        self.self_attn = MultiHeadAttention(d_model, num_heads)
-        self.cross_attn = MultiHeadAttention(d_model, num_heads)
-        self.feed_forward = PositionWiseFeedForward(d_model, d_ff)
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        self.norm3 = nn.LayerNorm(d_model)
-        self.dropout = nn.Dropout(dropout)
+   def train_one_epoch():
+    model.train(True)
+    print(f'Epoch: {epoch + 1}')
+    running_loss = 0.0
 
-    def forward(self, x, enc_output, src_mask, tgt_mask):
-        attn_output = self.self_attn(x, x, x, tgt_mask)
-        x = self.norm1(x + self.dropout(attn_output))
-        attn_output = self.cross_attn(x, enc_output, enc_output, src_mask)
-        x = self.norm2(x + self.dropout(attn_output))
-        ff_output = self.feed_forward(x)
-        x = self.norm3(x + self.dropout(ff_output))
-        return x
-   ```  
+    for batch_index, batch in enumerate(train_loader):
+        x_batch, y_batch = batch[0].to(device), batch[1].to(device)
 
-**5. Transformer**
+        output = model(x_batch)
+        loss = loss_function(output, y_batch)
+        running_loss += loss.item()
 
-   The Transformer class brings together the various components of a Transformer model, including the embeddings, positional encoding, encoder layers, and decoder layers.
-  
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if batch_index % 100 == 99:  # print every 100 batches
+            avg_loss_across_batches = running_loss / 100
+            print('Batch {0}, Loss: {1:.3f}'.format(batch_index+1,
+                                                    avg_loss_across_batches))
+            running_loss = 0.0
    ```
-    class Transformer(nn.Module):
-        def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout):
-            super(Transformer, self).__init__()
-            self.encoder_embedding = nn.Embedding(src_vocab_size, d_model)
-            self.decoder_embedding = nn.Embedding(tgt_vocab_size, d_model)
-            self.positional_encoding = PositionalEncoding(d_model, max_seq_length)
+
+   Validating or also can be called as testing of the model. It's done by approximately ∼ 15% with our data and validation loss is calculated.
     
-            self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-            self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-    
-            self.fc = nn.Linear(d_model, tgt_vocab_size)
-            self.dropout = nn.Dropout(dropout)
-    
-        def generate_mask(self, src, tgt):
-            src_mask = (src != 0).unsqueeze(1).unsqueeze(2)
-            tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)
-            seq_length = tgt.size(1)
-            nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
-            tgt_mask = tgt_mask & nopeak_mask
-            return src_mask, tgt_mask
-    
-        def forward(self, src, tgt):
-            src_mask, tgt_mask = self.generate_mask(src, tgt)
-            src_embedded = self.dropout(self.positional_encoding(self.encoder_embedding(src)))
-            tgt_embedded = self.dropout(self.positional_encoding(self.decoder_embedding(tgt)))
-    
-            enc_output = src_embedded
-            for enc_layer in self.encoder_layers:
-                enc_output = enc_layer(enc_output, src_mask)
-    
-            dec_output = tgt_embedded
-            for dec_layer in self.decoder_layers:
-                dec_output = dec_layer(dec_output, enc_output, src_mask, tgt_mask)
-    
-            output = self.fc(dec_output)
-            return output
    ```
+    def validate_one_epoch():
+    model.train(False)
+    running_loss = 0.0
+
+    for batch_index, batch in enumerate(test_loader):
+        x_batch, y_batch = batch[0].to(device), batch[1].to(device)
+
+        with torch.no_grad():
+            output = model(x_batch)
+            loss = loss_function(output, y_batch)
+            running_loss += loss.item()
+
+    avg_loss_across_batches = running_loss / len(test_loader)
+
+    print('Val Loss: {0:.3f}'.format(avg_loss_across_batches))
+   ```
+   Lastly, calling the functions after defining the parameters.
+   ```
+    learning_rate = 0.001
+num_epochs = 10
+loss_function = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+for epoch in range(num_epochs):
+    train_one_epoch()
+    validate_one_epoch()
+   ```
+
+
+
 
 # Reading Data & Calculations
     
@@ -164,37 +122,57 @@ f.close()
 classArray = [chargeInfo() for i in range(len(dataList))]
    ```
 
-After the transformer model is implemented using PyTorch, the 64 batch-sized samples is taken from our data are divided into three portions to train, validate and test the model, respectively.
+We calculate kW for each hour, normalize the data reshape and convert it to tensor to be able to give as input to the LSTM block.
 
    ```
-for i in range(64):
-    targetData[i] = dataSetInt[10*i : 50 + 10*i]
+scaler = MinMaxScaler(feature_range=(-1,1))
+dataMatrix = scaler.fit_transform(dataMatrix)
 
-# Filling source array with samples batchSize = 64
-c = np.arange(1,len(dataSet))
-for i in range(64):
-    sourceData[i] = c[10*i : 50 + 10*i]
+X = dataMatrix[:,1:]
+y = dataMatrix[:,0]
+X = np.flip(X,axis=1)
 
-# Dividing the target data into portions training, validating and testing
-targetData_training = targetData[:,0:35]
-targetData_validation = targetData[:,35:40]
-targetData_test = targetData[:,40:50]
+split_index = 650
+
+X_train = X[:split_index]
+X_test = X[split_index:]
+y_train = y[:split_index]
+y_test = y[split_index:]
+
+X_train = X_train.reshape((-1,4,1))
+X_test = X_test.reshape((-1,4,1))
+y_train = y_train.reshape((-1,1))
+y_test = y_test.reshape((-1,1))
+
+X_train = torch.from_numpy(X_train.copy()).float()
+X_test = torch.from_numpy(X_test.copy()).float()
+y_train = torch.from_numpy(y_train.copy()).float()
+y_test = torch.from_numpy(y_test.copy()).float()
    ```
 
-The epoch (iteration number for training) is prompted, loss of training process for each epoch level is calculated and printed on the prompt screen.
+We denormalize the output data, flatten it and do required operations to plot it .
 
    ```
-print('Enter training epoches:', end=' \t')
-ep = int(input())
+train_predictions = predicted.flatten()
 
-# Iterating over 5 training epochs
-for epoch in range(ep):
-    optimizer.zero_grad() # Clears the gradients from the previous iteration
-    output = transformer(sourceTensor_training, targetTensor_training[:, :-1]) # Passes the source data and the target data through the transformer
-    loss = criterion(output.contiguous().view(-1, 1000), targetTensor_training[:, 1:].contiguous().view(-1)) # Computes the loss between the model's predictions and the target data.
-    loss.backward() # Computes the gradients of the loss with respect to the model's parameters
-    optimizer.step() # Updates the model's parameters using the computed gradients
-    print(f"Epoch: {epoch+1}, Loss: {loss.item()}") # Prints the current epoch number and the loss value for that epoch
+dummies = np.zeros((X_train.shape[0], 4+1))
+dummies[:, 0] = train_predictions
+dummies = scaler.inverse_transform(dummies)
+
+train_predictions = dummies[:, 0]
+
+dummies = np.zeros((X_train.shape[0], 4+1))
+dummies[:, 0] = y_train.flatten()
+dummies = scaler.inverse_transform(dummies)
+
+new_y_train = dummies[:, 0]
+
+plt.title("Training data prediction")
+plt.plot(new_y_train, label='Original')
+plt.plot(train_predictions, label='Predictions')
+plt.xlabel('Hours')
+plt.ylabel('kW')
+plt.legend()
    ```
 
 Validation loss is also calculated, original data and the model output is shown on the same plot for comparation.
