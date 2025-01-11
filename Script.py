@@ -312,13 +312,12 @@ dropout = 0.05
 # Creating transformer instance
 transformer = Transformer(1000, 1000, embeddingDim, noHeads, noEncLayers, FFND, 35, dropout)
 
-
 criterion = nn.CrossEntropyLoss(ignore_index=0) # Defines the loss function as cross-entropy loss. The ignore_index argument, also known as padding is set to zero.
 optimizer = optim.Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9) # Defines the optimizer as Adam with a learning rate of 0.0001 and specific beta values.
 
 transformer.train() # Sets the transformer model to training mode, enabling behaviors like dropout that only apply during training.
 
-print('Enter training epoches:')
+print('Enter training epoches:', end=' \t')
 ep = int(input())
 
 # Iterating over 5 training epochs
@@ -365,8 +364,44 @@ plt.legend(["Original", "Predicted (e="+str(ep)+")"], loc="lower right")
 plt.xlabel("Hours from May 9, 2020 to Jun 11, 2020 (747 total)")
 plt.ylabel("kW")
 plt.gca().yaxis.label.set(rotation='horizontal', ha='right');
+
+# Prediction attempt for future data, source data for future is generated randomly
+
+randSourceData = sourceData_validation              # Randomly generating source data
+np.random.shuffle(randSourceData)
+for k in range(64):                                 # Shuffling the random data alon all axis
+    np.random.shuffle(randSourceData[k])
+randSourceTensor = torch.from_numpy(randSourceData) # Converting source to tensor
+
+randTargetData = targetData_validation              # Randomly generating source data
+np.random.shuffle(randTargetData)
+for k in range(64):                                 # Shuffling the random data alon all axis
+    np.random.shuffle(randTargetData[k])
+randTargetTensor = torch.from_numpy(randTargetData) # Converting target to tensor
+
+val_output_f = transformer(randSourceTensor, randTargetTensor[:, :-1]) # Passes the  source data and target data through the transformer
+
+futurePredict = np.empty((64, 5),dtype=int) # Creating an array to hold the predictions
+for i in range(val_output_f.size()[0]):
+    for j in range(val_output_f.size()[1]):
+        futurePredict[i][j] = torch.argmax(val_output[i][j])
+
+# Since transformer operations exclude the first token in each sequence the last column is filled with zeros. To avoid discontinuity, we assign previous values to the zero column.
+futurePredict[:,4] = futurePredict[:,3]
+
+# Converting predicted array into 1-Dimensional
+futurePredict = futurePredict.reshape(-1)
+
+# We multiplied the original dataset by 100 to convert it into integers, now dividing by 100 to get original values
+futurePredict = np.array(futurePredict, dtype=float) / 100
+
+# Plotting future predictions
+y3 = np.arange(681,1001)
+plt.figure()
+plt.rcParams["figure.figsize"] = [15, 5]
+plt.title("Average Power Future Predicts")
+plt.plot(y3, futurePredict, color="red")
+plt.xlabel("Hours after Jun 11, 2020 (320 total)")
+plt.ylabel("kW")
+plt.gca().yaxis.label.set(rotation='horizontal', ha='right');
 plt.show()
-
-
-
-
