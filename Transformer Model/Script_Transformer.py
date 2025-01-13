@@ -414,47 +414,6 @@ print(f"R² (Variance proportion): {R2}")
 # Maximum error
 print("Max Error:" ,max_error(dataSet[40:680], predictedDataSet))
 
-"""
-# Prediction attempt for future data, source data for future is generated randomly
-
-randSourceData = sourceData_validation              # Randomly generating source data
-np.random.shuffle(randSourceData)
-for k in range(64):                                 # Shuffling the random data alon all axis
-    np.random.shuffle(randSourceData[k])
-randSourceTensor = torch.from_numpy(randSourceData) # Converting source to tensor
-
-randTargetData = targetData_validation              # Randomly generating source data
-np.random.shuffle(randTargetData)
-for k in range(64):                                 # Shuffling the random data alon all axis
-    np.random.shuffle(randTargetData[k])
-randTargetTensor = torch.from_numpy(randTargetData) # Converting target to tensor
-
-val_output_f = transformer(randSourceTensor, randTargetTensor[:, :-1]) # Passes the  source data and target data through the transformer
-
-futurePredict = np.empty((64, 5),dtype=int) # Creating an array to hold the predictions
-for i in range(val_output_f.size()[0]):
-    for j in range(val_output_f.size()[1]):
-        futurePredict[i][j] = torch.argmax(val_output[i][j])
-
-# Since transformer operations exclude the first token in each sequence the last column is filled with zeros. To avoid discontinuity, we assign previous values to the zero column.
-futurePredict[:,4] = futurePredict[:,3]
-
-# Converting predicted array into 1-Dimensional
-futurePredict = futurePredict.reshape(-1)
-
-# We multiplied the original dataset by 100 to convert it into integers, now dividing by 100 to get original values
-futurePredict = np.array(futurePredict, dtype=float) / 100
-
-# Plotting future predictions
-y3 = np.arange(681,1001)
-plt.figure()
-plt.rcParams["figure.figsize"] = [15, 5]
-plt.title("Average Power Future Predicts")
-plt.plot(y3, futurePredict, color="red")
-plt.xlabel("Hours after Jun 11, 2020 (320 total)")
-plt.ylabel("kW")
-plt.gca().yaxis.label.set(rotation='horizontal', ha='right');
-"""
 plt.show()
 
 
