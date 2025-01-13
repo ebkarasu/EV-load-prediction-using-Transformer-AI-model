@@ -11,6 +11,10 @@ import json
 import timedelta
 import matplotlib.pyplot as plt
 from sympy.stats.sampling.sample_numpy import numpy
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+from sklearn.metrics import max_error
+import statistics as st
 
 
 # This is a class for making Multi Head Attention processes and defined as a subclass of PyTorch's nn.Module
@@ -271,27 +275,27 @@ dataSetInt = 100 * dataSet
 dataSetInt = numpy.int64(dataSetInt)
 
 # These arrays are to portionally train our transformer then to test it
-targetData = np.empty((64, 50),dtype=int)
-sourceData = np.empty((64, 50),dtype=int)
+targetData = np.empty((640, 10),dtype=int)
+sourceData = np.empty((640, 10),dtype=int)
 
 # Filling target array with samples batchSize = 64
-for i in range(64):
-    targetData[i] = dataSetInt[10*i : 50 + 10*i]
+for i in range(640):
+    targetData[i] = dataSetInt[40 + 1*i : 50 + 1*i]
 
 # Filling source array with samples batchSize = 64
 c = np.arange(1,len(dataSet))
-for i in range(64):
-    sourceData[i] = c[10*i : 50 + 10*i]
+for i in range(640):
+    sourceData[i] = c[40 + 1*i : 50 + 1*i]
 
 # Dividing the target data into portions training, validating and testing
-targetData_training = targetData[:,0:35]
-targetData_validation = targetData[:,35:40]
-targetData_test = targetData[:,40:50]
+targetData_training = targetData[:,0:10]
+targetData_validation = targetData[:,0:1]
+targetData_test = targetData[:,0:1]
 
 # Dividing the source data into portions training, validating and testing
-sourceData_training = sourceData[:,0:35]
-sourceData_validation = sourceData[:,35:40]
-sourceData_test = sourceData[:,40:50]
+sourceData_training = sourceData[:,0:10]
+sourceData_validation = sourceData[:,0:1]
+sourceData_test = sourceData[:,0:1]
 
 # Transformer only accepts inputs as tensors which is a class in PyTorch
 sourceTensor_training = torch.from_numpy(sourceData_training)
@@ -310,7 +314,7 @@ FFND = 2048 # Feeding forward network dimension
 dropout = 0.05
 
 # Creating transformer instance
-transformer = Transformer(1000, 1000, embeddingDim, noHeads, noEncLayers, FFND, 35, dropout)
+transformer = Transformer(1000, 1000, embeddingDim, noHeads, noEncLayers, FFND, 10, dropout)
 
 criterion = nn.CrossEntropyLoss(ignore_index=0) # Defines the loss function as cross-entropy loss. The ignore_index argument, also known as padding is set to zero.
 optimizer = optim.Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9) # Defines the optimizer as Adam with a learning rate of 0.0001 and specific beta values.
@@ -320,6 +324,8 @@ transformer.train() # Sets the transformer model to training mode, enabling beha
 print('Enter training epoches:', end=' \t')
 ep = int(input())
 
+loss_func = numpy.empty((ep)) # Loss function is going to be plotted at the end
+
 # Iterating over 5 training epochs
 for epoch in range(ep):
     optimizer.zero_grad() # Clears the gradients from the previous iteration
@@ -327,30 +333,42 @@ for epoch in range(ep):
     loss = criterion(output.contiguous().view(-1, 1000), targetTensor_training[:, 1:].contiguous().view(-1)) # Computes the loss between the model's predictions and the target data.
     loss.backward() # Computes the gradients of the loss with respect to the model's parameters
     optimizer.step() # Updates the model's parameters using the computed gradients
+    loss_func[epoch] = loss.item() # Filling the loss function
     print(f"Epoch: {epoch+1}, Loss: {loss.item()}") # Prints the current epoch number and the loss value for that epoch
 
 transformer.eval() # Puts the transformer model in evaluation mode, turns off certain behaviors like dropout that are only used during training
 
 with torch.no_grad(): # Disables gradient computation, as we don't need to compute gradients during validation
 
-    val_output = transformer(sourceTensor_test, targetTensor_test[:, :-1]) # Passes the validation source data and the validation target data through the transformer
-    val_loss = criterion(val_output.contiguous().view(-1, 1000), targetTensor_test[:, 1:].contiguous().view(-1)) # Computes the loss between the model's predictions and the validation target data
+    val_output = transformer(sourceTensor_training, targetTensor_training[:, :-1]) # Passes the validation source data and the validation target data through the transformer
+    val_loss = criterion(val_output.contiguous().view(-1, 1000), targetTensor_training[:, 1:].contiguous().view(-1)) # Computes the loss between the model's predictions and the validation target data
     print(f"Validation Loss: {val_loss.item()}") # Prints the validation loss value
 
 # Creating and filling array to hold the predictions
-predictedDataSet = np.empty((64, 10),dtype=int) # Creating an array to hold the predictions
-for i in range(val_output.size()[0]):
-    for j in range(val_output.size()[1]):
-        predictedDataSet[i][j] = torch.argmax(val_output[i][j])
+predictedDataSet = np.empty((640, 1),dtype=int) # Creating an array to hold the predictions
+for i in range(output.size()[0]):
+    for j in range(1):
+        predictedDataSet[i][j] = torch.argmax(output[i][j])
 
 # Since transformer operations exclude the first token in each sequence the last column is filled with zeros. To avoid discontinuity, we assign previous values to the zero column.
-predictedDataSet[:,9] = predictedDataSet[:,8]
+#predictedDataSet[:,9] = predictedDataSet[:,8]
 
 # Converting predicted array into 1-Dimensional
 predictedDataSet = predictedDataSet.reshape(-1)
 
 # We multiplied the original dataset by 100 to convert it into integers, now dividing by 100 to get original values
 predictedDataSet = np.array(predictedDataSet, dtype=float) / 100
+
+mode = st.mode(predictedDataSet)
+for i in range(predictedDataSet.shape[0]):
+        if predictedDataSet[i] == mode:
+            predictedDataSet[i] = 0
+
+nozero = predictedDataSet[predictedDataSet != 0]
+mode = st.mode(nozero)
+for i in range(predictedDataSet.shape[0]):
+        if predictedDataSet[i] == mode:
+            predictedDataSet[i] = 0
 
 y = np.arange(1,748)
 y2  = np.arange(41,681)
@@ -365,6 +383,38 @@ plt.xlabel("Hours from May 9, 2020 to Jun 11, 2020 (747 total)")
 plt.ylabel("kW")
 plt.gca().yaxis.label.set(rotation='horizontal', ha='right');
 
+y_loss = np.arange(1,ep+1)
+
+# Plotting the loss function
+plt.figure()
+plt.title("Loss function")
+plt.plot(y_loss, loss_func, color="green")
+plt.xlabel("Number of Epoch")
+plt.ylabel("Loss")
+
+# Calculating error metrics
+mse = mean_squared_error(dataSet[40:680], predictedDataSet)
+rmse = np.sqrt(mse)
+print()
+print(f"Root Mean Square Error (RMSE): {rmse}")
+
+# Mean absolute error
+mae = 0
+for i in range(len(y2)):
+    mae += abs(dataSet[40+i] - predictedDataSet[i])
+
+mae = mae/len(y2)
+print()
+print("Mean absolute error : " + str(mae))
+
+# R^2
+R2 = r2_score(dataSet[40:680], predictedDataSet)
+print(f"R² (Variance proportion): {R2}")
+
+# Maximum error
+print("Max Error:" ,max_error(dataSet[40:680], predictedDataSet))
+
+"""
 # Prediction attempt for future data, source data for future is generated randomly
 
 randSourceData = sourceData_validation              # Randomly generating source data
@@ -404,4 +454,7 @@ plt.plot(y3, futurePredict, color="red")
 plt.xlabel("Hours after Jun 11, 2020 (320 total)")
 plt.ylabel("kW")
 plt.gca().yaxis.label.set(rotation='horizontal', ha='right');
+"""
 plt.show()
+
+
