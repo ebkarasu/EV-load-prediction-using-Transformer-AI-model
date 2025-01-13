@@ -276,21 +276,10 @@ plt.xlabel("Hours from May 9, 2020 to Jun 11, 2020 (747 total)")
 plt.ylabel("kW")
 plt.gca().yaxis.label.set(rotation='horizontal', ha='right');
    ```
-![Compare Predictions (e=15)](https://github.com/user-attachments/assets/974c1e7a-029f-44b0-a80d-302d76e85416)
 
-   ```
-y3 = np.arange(681,1001)
-plt.figure()
-plt.rcParams["figure.figsize"] = [15, 5]
-plt.title("Average Power Future Predicts")
-plt.plot(y3, futurePredict, color="red")
-plt.xlabel("Hours after Jun 11, 2020 (320 total)")
-plt.ylabel("kW")
-plt.gca().yaxis.label.set(rotation='horizontal', ha='right');
-plt.show()
-   ```
+![e=15](https://github.com/user-attachments/assets/da83661e-ffa3-447c-8170-8c8bb708ea2f)
 
-![Future Predicts (e=15)](https://github.com/user-attachments/assets/87bfa34c-6271-42f8-a2cb-2d66cf3e1737)
+
 
 
 
