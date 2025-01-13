@@ -181,6 +181,18 @@ targetData_validation = targetData[:,35:40]
 targetData_test = targetData[:,40:50]
    ```
 
+The parameters for transformer are defined. 
+
+   ```
+embeddingDim = 512 # Embedding dimension
+noHeads = 8 # Number of heads
+noEncLayers = 6 # Number of encoding layers
+noDecLayers = 6 # Number of decoding layers
+FFND = 2048 # Feeding forward network dimension
+dropout = 0.05
+
+   ```
+
 The epoch (iteration number for training) is prompted, loss of training process for each epoch level is calculated and printed on the prompt screen.
 
    ```
@@ -252,5 +264,7 @@ plt.show()
    ```
 
 ![Future Predicts (e=15)](https://github.com/user-attachments/assets/87bfa34c-6271-42f8-a2cb-2d66cf3e1737)
+
+![errors](https://github.com/user-attachments/assets/381bb89f-96c4-4f48-8172-09e9e16fa19f)
 
 
