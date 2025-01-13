@@ -219,6 +219,7 @@ with torch.no_grad(): # Disables gradient computation, as we don't need to compu
     print(f"Validation Loss: {val_loss.item()}") # Prints the validation loss value
    ```
 ![screenshot](https://github.com/user-attachments/assets/19a242c4-5677-4db0-9342-19ebf84ae3f4)
+![errors](https://github.com/user-attachments/assets/381bb89f-96c4-4f48-8172-09e9e16fa19f)
 
 Lastly, the outputs of the model with the original data and future prediction are processed on our trained transformer model and plotted, seperatively.
 
@@ -265,6 +266,5 @@ plt.show()
 
 ![Future Predicts (e=15)](https://github.com/user-attachments/assets/87bfa34c-6271-42f8-a2cb-2d66cf3e1737)
 
-![errors](https://github.com/user-attachments/assets/381bb89f-96c4-4f48-8172-09e9e16fa19f)
 
 
