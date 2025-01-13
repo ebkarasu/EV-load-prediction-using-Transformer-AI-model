@@ -219,6 +219,32 @@ with torch.no_grad(): # Disables gradient computation, as we don't need to compu
     print(f"Validation Loss: {val_loss.item()}") # Prints the validation loss value
    ```
 ![screenshot](https://github.com/user-attachments/assets/19a242c4-5677-4db0-9342-19ebf84ae3f4)
+
+Calculating the error metrics
+
+   ```
+# Calculating error metrics
+mse = mean_squared_error(dataSet[40:680], predictedDataSet)
+rmse = np.sqrt(mse)
+print()
+print(f"Root Mean Square Error (RMSE): {rmse}")
+
+# Mean absolute error
+mae = 0
+for i in range(len(y2)):
+    mae += abs(dataSet[40+i] - predictedDataSet[i])
+
+mae = mae/len(y2)
+print()
+print("Mean absolute error : " + str(mae))
+
+# R^2
+R2 = r2_score(dataSet[40:680], predictedDataSet)
+print(f"R² (Variance proportion): {R2}")
+
+# Maximum error
+print("Max Error:" ,max_error(dataSet[40:680], predictedDataSet))
+   ```
 ![errors](https://github.com/user-attachments/assets/381bb89f-96c4-4f48-8172-09e9e16fa19f)
 
 Lastly, the outputs of the model with the original data and future prediction are processed on our trained transformer model and plotted, seperatively.
